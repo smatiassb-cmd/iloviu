@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Corazón Interactivo</title>
+<style>
+  /* Fondo negro con estrellas */
+  body {
+    margin: 0;
+    background-color: black;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    /* Estrellas con box-shadow */
+    background: black;
+    background-image: 
+      radial-gradient(2px 2px at 20% 30%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 40% 10%, #fff, transparent),
+      radial-gradient(1.2px 1.2px at 60% 70%, #fff, transparent),
+      radial-gradient(1.8px 1.8px at 80% 40%, #fff, transparent),
+      radial-gradient(1.3px 1.3px at 10% 80%, #fff, transparent),
+      radial-gradient(2px 2px at 50% 50%, #fff, transparent);
+    background-repeat: repeat;
+    background-size: 100% 100%;
+  }
+  #heart {
+    width: 150px;
+    height: 150px;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+    fill: #ff5eaa;
+    transition: transform 0.3s ease;
+  }
+  #heart:hover {
+    transform: scale(1.1);
+  }
+  #audioContainer {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 3px solid #ff5eaa;
+    border-radius: 10px;
+    background-color: #31111e;
+    padding: 6px 14px;
+    display: none;
+    color: #ff5eaa;
+    font-weight: bold;
+    font-size: 18px;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+  }
+  #audioPlayer {
+    outline: none;
+    border-radius: 6px;
+    background: transparent !important;
+    border: none !important;
+    display: none; /* ocultamos el reproductor */
+  }
+  /* Eliminar controles visibles del audio en navegadores webkit */
+  audio::-webkit-media-controls-panel {
+    background: transparent !important;
+    border: none !important;
+    display: none !important;
+  }
+  audio::-webkit-media-controls-play-button,
+  audio::-webkit-media-controls-volume-slider {
+    filter: invert(0.4) sepia(1) saturate(3) hue-rotate(310deg);
+  }
+  .phrase {
+    position: absolute;
+    color: black; /* letras negras */
+    font-weight: bold;
+    font-size: 18px;
+    padding: 8px 15px;
+    border: 2px solid #ff9ac1;
+    border-radius: 25px;
+    background-color: #ff9ac1cc; /* rosa apagado */
+    user-select: none;
+    cursor: default;
+    white-space: nowrap;
+    pointer-events: none;
+    overflow: visible;
+  }
+  #finalQuestion {
+    position: fixed !important;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) !important;
+    pointer-events: auto;
+    cursor: default;
+    user-select: none;
+    text-align: center;
+    max-width: 90vw;
+    z-index: 90;
+  }
+  #finalQuestion button {
+    background-color: #ff9ac1;
+    border: 2px solid #ff5eaa;
+    border-radius: 20px;
+    padding: 8px 18px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    color: #31111e;
+    margin: 10px 8px 0 8px;
+    transition: background-color 0.3s;
+  }
+  #finalQuestion button:hover {
+    background-color: #ff5eaa;
+    color: white;
+  }
+  #responseMsg {
+    position: fixed;
+    bottom: 40px;
+    width: 100%;
+    text-align: center;
+    color: #ff5eaa;
+    font-size: 24px;
+    font-weight: bold;
+    display: none;
+    user-select: none;
+    text-shadow: 0 0 6px #ff5eaa;
+    z-index: 100;
+  }
+  /* Corazones que saltan */
+  .jumping-heart {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Heart_font_awesome.svg/1024px-Heart_font_awesome.svg.png') no-repeat center center;
+    background-size: contain;
+    pointer-events: none;
+    user-select: none;
+    animation: jumpUp 1.2s ease forwards;
+    opacity: 0.9;
+    z-index: 80;
+  }
+  @keyframes jumpUp {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 0.9;
+    }
+    50% {
+      transform: translateY(-30px) scale(1.3);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-60px) scale(0);
+      opacity: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG corazón inline para que siempre se muestre -->
+<svg id="heart" viewBox="0 0 24 24" title="Haz clic aquí" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 
+           7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 
+           19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+</svg>
+
+<div id="audioContainer">
+  <span>Te la dedico</span>
+  <audio id="audioPlayer" src="cancion.mp3" preload="auto"></audio>
+</div>
+
+<div id="responseMsg"></div>
+
+<script>
+  const heart = document.getElementById('heart');
+  const audioPlayer = document.getElementById('audioPlayer');
+  const audioContainer = document.getElementById('audioContainer');
+  const responseMsg = document.getElementById('responseMsg');
+
+  const phrases = [
+    "Te amo ❤️",
+    "Eres lo mejor que me ha pasado ❤️",
+    "No quiero que esto acabe ❤️",
+    "Te adoro ❤️",
+    "Siempre estaré contigo ❤️",
+    "Eres mi felicidad ❤️",
+    "Cada día te quiero más ❤️",
+    "Eres mi todo ❤️"
+  ];
+
+  let questionAdded = false;
+
+  heart.addEventListener('click', () => {
+    if (audioPlayer.paused) {
+      audioPlayer.currentTime = 44; // empieza desde segundo 44
+      audioPlayer.play();
+      audioContainer.style.display = 'flex';
+      startPhrases();
+      heart.style.pointerEvents = 'none'; // evitar más clicks
+      heart.style.opacity = '0.7';
+    }
+  });
+
+  function startPhrases() {
+    let index = 0;
+    const delayBetween = 1400;
+
+    function showNext() {
+      if (index < phrases.length) {
+        createPhrase(phrases[index]);
+        index++;
+        setTimeout(showNext, delayBetween);
+      } else if (!questionAdded) {
+        questionAdded = true;
+        createFinalQuestion();
+      }
+    }
+    showNext();
+  }
+
+  function createPhrase(text) {
+    const phrase = document.createElement('div');
+    phrase.className = 'phrase';
+    phrase.textContent = text;
+
+    document.body.appendChild(phrase);
+
+    // Posición inicial (centro corazón)
+    const heartRect = heart.getBoundingClientRect();
+    phrase.style.left = heartRect.left + heartRect.width / 2 + 'px';
+    phrase.style.top = heartRect.top + heartRect.height / 2 + 'px';
+
+    // DIRECCIONES ALEATORIAS DE SALTO INICIAL
+    const directions = [
+      {x: -100, y: -150},
+      {x: 0, y: -170},
+      {x: 100, y: -150},
+      {x: -120, y: -80},
+      {x: 120, y: -80}
+    ];
+    const dir = directions[Math.floor(Math.random() * directions.length)];
+    const jumpDuration = 600;
+
+    // Añadir transición para salto inicial
+    phrase.style.transition = `transform ${jumpDuration}ms ease-out`;
+    phrase.style.transform = `translate(${dir.x}px, ${dir.y}px) rotate(${(Math.random()*30-15)}deg)`;
+
+    setTimeout(() => {
+      // quitar transición y transform para reiniciar posición
+      phrase.style.transition = '';
+      phrase.style.transform = '';
+
+      // calcular nueva posición después del salto
+      const leftPx = heartRect.left + heartRect.width / 2 + dir.x;
+      const topPx = heartRect.top + heartRect.height / 2 + dir.y;
+
+      phrase.style.left = leftPx + 'px';
+      phrase.style.top = topPx + 'px';
+
+      // iniciar caída animada
+      animateFall(phrase);
+
+      // crear corazones saltando desde el marco
+      createJumpingHearts(phrase);
+    }, jumpDuration);
+  }
+
+  function createJumpingHearts(phraseElem) {
+    const heartsCount = 3;
+
+    for (let i = 0; i < heartsCount; i++) {
+      const jumpHeart = document.createElement('div');
+      jumpHeart.className = 'jumping-heart';
+
+      const paddingX = Math.random() * (phraseElem.offsetWidth - 20) + 10;
+      const paddingY = Math.random() * (phraseElem.offsetHeight - 20) + 10;
+
+      jumpHeart.style.left = (parseFloat(phraseElem.style.left) + paddingX) + 'px';
+      jumpHeart.style.top = (parseFloat(phraseElem.style.top) + paddingY) + 'px';
+
+      document.body.appendChild(jumpHeart);
+
+      setTimeout(() => {
+        jumpHeart.remove();
+      }, 1200);
+    }
+  }
+
+  function createFinalQuestion() {
+    const container = document.createElement('div');
+    container.className = 'phrase';
+    container.id = 'finalQuestion';
+
+    const questionText = document.createElement('div');
+    questionText.textContent = "¿Quieres ser mi para siempre? ❤️❤️";
+    questionText.style.marginBottom = '10px';
+
+    const btnYes = document.createElement('button');
+    btnYes.textContent = 'Sí';
+    btnYes.addEventListener('click', () => {
+      showResponse("Sabía que dirías que sí ❤️❤️");
+      disableButtons();
+    });
+
+    const btnNo = document.createElement('button');
+    btnNo.textContent = 'No';
+    btnNo.addEventListener('click', () => {
+      showResponse("No importa, siempre te querré ❤️");
+      disableButtons();
+    });
+
+    container.appendChild(questionText);
+    container.appendChild(btnYes);
+    container.appendChild(btnNo);
+
+    document.body.appendChild(container);
+  }
+
+  function showResponse(text) {
+    responseMsg.textContent = text;
+    responseMsg.style.display = 'block';
+  }
+
+  function disableButtons() {
+    const btns = document.querySelectorAll('#finalQuestion button');
+    btns.forEach(btn => {
+      btn.disabled = true;
+      btn.style.cursor = 'default';
+      btn.style.opacity = '0.6';
+    });
+  }
+
+  function animateFall(element) {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+
+    const startX = parseFloat(element.style.left);
+    const startY = parseFloat(element.style.top);
+
+    const directionX = (Math.random() * 2 - 1) * 150;
+    const rotation = (Math.random() * 90) - 45;
+    const duration = 12000;
+
+    let startTime = null;
+
+    function fall(timestamp) {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const x = startX + directionX * progress;
+      const y = startY + screenHeight * progress * 1.2;
+
+      element.style.transform = `translate(${x - startX}px, ${y - startY}px) rotate(${rotation * progress}deg)`;
+
+      if (progress < 1) {
+        requestAnimationFrame(fall);
+      } else {
+        element.remove();
+      }
+    }
+    requestAnimationFrame(fall);
+  }
+</script>
+
+</body>
+</html>
+
+
+
+
